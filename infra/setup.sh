@@ -50,14 +50,20 @@ gcloud firestore databases create \
   --location="${REGION}" \
   --project="${PROJECT_ID}" || true
 
-echo "==> Creating OpenAI API key secret (enter key when prompted)..."
-printf "Enter OpenAI API key: "
-read -rs OPENAI_KEY
-echo
-echo -n "${OPENAI_KEY}" | gcloud secrets create openai-api-key \
-  --project="${PROJECT_ID}" --data-file=- || \
-echo -n "${OPENAI_KEY}" | gcloud secrets versions add openai-api-key \
-  --project="${PROJECT_ID}" --data-file=-
+# Secret Manager: OPEN_AI_API_KEY and YOUTUBE_API_KEY
+# If already created in the Console, this step is skipped automatically.
+echo "==> Ensuring Secret Manager secrets exist..."
+for SECRET_NAME in OPEN_AI_API_KEY YOUTUBE_API_KEY; do
+  if gcloud secrets describe "${SECRET_NAME}" --project="${PROJECT_ID}" &>/dev/null; then
+    echo "    ${SECRET_NAME} already exists — skipping creation"
+  else
+    printf "Enter value for %s: " "${SECRET_NAME}"
+    read -rs SECRET_VALUE
+    echo
+    echo -n "${SECRET_VALUE}" | gcloud secrets create "${SECRET_NAME}" \
+      --project="${PROJECT_ID}" --data-file=-
+  fi
+done
 
 echo "==> Deploying VOICEVOX to Cloud Run (internal ingress)..."
 gcloud run deploy "${VOICEVOX_SERVICE}" \

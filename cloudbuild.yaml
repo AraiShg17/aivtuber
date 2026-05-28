@@ -3,7 +3,11 @@
 # Project-specific defaults are kept in infra/gcp.env.
 # ${PROJECT_ID} is set automatically by Cloud Build to the trigger's project —
 # no manual update needed when moving to a different project.
-# Override _VOICEVOX_URL and _YOUTUBE_API_KEY in the Cloud Build trigger UI.
+# Override _VOICEVOX_URL in the Cloud Build trigger UI.
+#
+# Secrets (managed in Secret Manager, not in trigger variables):
+#   OPEN_AI_API_KEY  → injected as OPENAI_API_KEY
+#   YOUTUBE_API_KEY  → injected as YOUTUBE_API_KEY
 
 steps:
   # Build Docker image with layer cache
@@ -43,18 +47,17 @@ steps:
       - '--port=8080'
       - '--min-instances=0'
       - '--max-instances=1'
-      - '--set-secrets=OPENAI_API_KEY=openai-api-key:latest'
-      - '--set-env-vars=FIREBASE_PROJECT_ID=${PROJECT_ID},VOICEVOX_URL=${_VOICEVOX_URL},VOICEVOX_SPEAKER_ID=${_VOICEVOX_SPEAKER_ID},YOUTUBE_API_KEY=${_YOUTUBE_API_KEY}'
+      - '--set-secrets=OPENAI_API_KEY=OPEN_AI_API_KEY:latest,YOUTUBE_API_KEY=YOUTUBE_API_KEY:latest'
+      - '--set-env-vars=FIREBASE_PROJECT_ID=${PROJECT_ID},VOICEVOX_URL=${_VOICEVOX_URL},VOICEVOX_SPEAKER_ID=${_VOICEVOX_SPEAKER_ID}'
 
 # Default substitutions — kept in sync with infra/gcp.env.
-# Override _VOICEVOX_URL, _YOUTUBE_API_KEY in the Cloud Build trigger.
+# Override _VOICEVOX_URL in the Cloud Build trigger after deploying VOICEVOX.
 substitutions:
-  _REGION: asia-northeast1       # = GCP_REGION in infra/gcp.env
-  _SERVICE: aivtuber             # = GCP_MAIN_SERVICE in infra/gcp.env
-  _REPO: aivtuber                # = GCP_AR_REPO in infra/gcp.env
-  _VOICEVOX_URL: ''              # Set after deploying VOICEVOX (output of setup.sh)
-  _VOICEVOX_SPEAKER_ID: '1'     # = VOICEVOX_SPEAKER_ID in infra/gcp.env
-  _YOUTUBE_API_KEY: ''           # Set in trigger (or migrate to Secret Manager)
+  _REGION: asia-northeast1      # = GCP_REGION in infra/gcp.env
+  _SERVICE: aivtuber            # = GCP_MAIN_SERVICE in infra/gcp.env
+  _REPO: aivtuber               # = GCP_AR_REPO in infra/gcp.env
+  _VOICEVOX_URL: ''             # Set after deploying VOICEVOX (output of setup.sh)
+  _VOICEVOX_SPEAKER_ID: '1'    # = VOICEVOX_SPEAKER_ID in infra/gcp.env
 
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${COMMIT_SHA}'
