@@ -31,7 +31,7 @@ export class OpenAIAdapter implements AIAdapter {
         ...history,
         { role: 'user', content: userMessage },
       ],
-      max_tokens: 150,
+      max_completion_tokens: 150,
       temperature: 0.8,
     });
 
