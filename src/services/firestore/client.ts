@@ -1,13 +1,20 @@
 import admin from 'firebase-admin';
+import type { Firestore } from 'firebase-admin/firestore';
 
-function initializeFirebase() {
-  if (admin.apps.length > 0) return;
-  admin.initializeApp({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    // Credential: ADC on Cloud Run, GOOGLE_APPLICATION_CREDENTIALS for local dev
-  });
+function initializeFirebase(): Firestore | null {
+  if (!process.env.FIREBASE_PROJECT_ID) {
+    console.warn('[firestore] FIREBASE_PROJECT_ID が未設定のため、会話記憶は無効です');
+    return null;
+  }
+  try {
+    if (!admin.apps.length) {
+      admin.initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID });
+    }
+    return admin.firestore();
+  } catch (err) {
+    console.warn('[firestore] 初期化に失敗しました。会話記憶は無効です:', err);
+    return null;
+  }
 }
 
-initializeFirebase();
-
-export const db = admin.firestore();
+export const db = initializeFirebase();

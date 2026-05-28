@@ -3,9 +3,9 @@ import { FieldValue } from 'firebase-admin/firestore';
 import type { MessageRecord } from '@/types';
 
 export async function upsertUser(userId: string, userName: string): Promise<void> {
+  if (!db) return;
   const userRef = db.collection('users').doc(userId);
   const snapshot = await userRef.get();
-
   if (snapshot.exists) {
     await userRef.update({ userName, lastSeenAt: FieldValue.serverTimestamp() });
   } else {
@@ -21,6 +21,7 @@ export async function upsertUser(userId: string, userName: string): Promise<void
 export async function saveMessage(
   record: Omit<MessageRecord, 'createdAt'>
 ): Promise<void> {
+  if (!db) return;
   await db.collection('messages').add({
     ...record,
     createdAt: FieldValue.serverTimestamp(),
@@ -31,6 +32,7 @@ export async function getRecentMessages(
   userId: string,
   limit = 5
 ): Promise<MessageRecord[]> {
+  if (!db) return [];
   const snapshot = await db
     .collection('messages')
     .where('userId', '==', userId)
