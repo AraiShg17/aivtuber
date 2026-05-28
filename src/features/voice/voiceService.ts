@@ -1,5 +1,6 @@
-import { voicevoxAdapter } from '@/adapters/tts/voicevoxAdapter';
+import { createTTSAdapter } from '@/adapters/tts/factory';
 
 export async function synthesizeVoice(text: string): Promise<Buffer> {
-  return voicevoxAdapter.synthesize(text);
+  const adapter = createTTSAdapter();
+  return adapter.synthesize(text);
 }
