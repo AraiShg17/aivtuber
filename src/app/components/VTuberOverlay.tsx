@@ -43,6 +43,7 @@ export default function VTuberOverlay({ videoId }: Props) {
           userId: comment.userId,
           userName: comment.userName,
           text: comment.text,
+          superChat: comment.superChat,
         }),
       });
       const { text }: AIApiResponse = await aiRes.json();

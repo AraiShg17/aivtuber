@@ -3,11 +3,11 @@ import { upsertUser, saveMessage, getRecentMessages } from '@/features/memory/me
 import type { ConversationMessage, AIApiRequest } from '@/types';
 
 export async function processComment(request: AIApiRequest): Promise<string> {
-  const { commentId, userId, userName, text } = request;
+  const { commentId, userId, userName, text, superChat } = request;
 
   await upsertUser(userId, userName);
 
-  // Past conversations: fetch desc, reverse to chronological order for context
+  // 過去会話を取得（降順 → 時系列に戻す）
   const recentMessages = await getRecentMessages(userId, 5);
   const history: ConversationMessage[] = recentMessages
     .reverse()
@@ -16,7 +16,16 @@ export async function processComment(request: AIApiRequest): Promise<string> {
       { role: 'assistant' as const, content: msg.aiMessage },
     ]);
 
-  const aiText = await openAIAdapter.generateResponse(text, history);
+  // スーパーチャットの場合は金額をメッセージに付与してコンテキストを与える
+  const contextualText = superChat
+    ? `[スーパーチャット: ${superChat.amountDisplayString}] ${text || '(コメントなし)'}`
+    : text;
+
+  const aiText = await openAIAdapter.generateResponse(
+    contextualText,
+    history,
+    { isSuperChat: !!superChat, superChatAmount: superChat?.amountDisplayString }
+  );
 
   await saveMessage({ userId, commentId, userMessage: text, aiMessage: aiText });
 

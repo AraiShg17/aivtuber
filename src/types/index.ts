@@ -1,9 +1,17 @@
+export interface SuperChatInfo {
+  amountDisplayString: string; // 例: "¥1,000"
+  currency: string;
+  tier: number;
+  userComment?: string; // スーパーチャットに添えたコメント（任意）
+}
+
 export interface YouTubeComment {
   commentId: string;
   userId: string;
   userName: string;
   text: string;
   publishedAt: string;
+  superChat?: SuperChatInfo; // スーパーチャットの場合のみ存在
 }
 
 export interface ConversationMessage {
@@ -36,6 +44,7 @@ export interface AIApiRequest {
   userId: string;
   userName: string;
   text: string;
+  superChat?: SuperChatInfo;
 }
 
 export interface AIApiResponse {

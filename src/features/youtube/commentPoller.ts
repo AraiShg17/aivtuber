@@ -1,10 +1,8 @@
-import type { YouTubeComment } from '@/types';
+import type { YouTubeComment, SuperChatInfo } from '@/types';
 import type { LiveChatMessagesResponse } from './types';
 
 const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3';
 
-// Module-level cache: videoId → liveChatId
-// Safe for single-instance Cloud Run deployment.
 const liveChatIdCache = new Map<string, string>();
 
 async function getLiveChatId(videoId: string, apiKey: string): Promise<string> {
@@ -50,19 +48,39 @@ export async function fetchLiveChatMessages(
 
   const comments: YouTubeComment[] = (data.items ?? [])
     .filter((item: Record<string, unknown>) => {
-      const snippet = item.snippet as Record<string, unknown> | undefined;
-      return snippet?.type === 'textMessageEvent';
+      const type = (item.snippet as Record<string, unknown>)?.type;
+      return type === 'textMessageEvent' || type === 'superChatEvent';
     })
-    .map((item: Record<string, unknown>) => {
+    .map((item: Record<string, unknown>): YouTubeComment => {
       const snippet = item.snippet as Record<string, unknown>;
       const authorDetails = item.authorDetails as Record<string, unknown>;
-      const textDetails = snippet.textMessageDetails as Record<string, unknown>;
+      const isSuperChat = snippet.type === 'superChatEvent';
+
+      // テキスト取得
+      const text = isSuperChat
+        ? ((snippet.superChatDetails as Record<string, unknown>)?.userComment as string) ?? ''
+        : ((snippet.textMessageDetails as Record<string, unknown>)?.messageText as string) ?? '';
+
+      // スーパーチャット情報
+      const superChat: SuperChatInfo | undefined = isSuperChat
+        ? {
+            amountDisplayString:
+              ((snippet.superChatDetails as Record<string, unknown>)?.amountDisplayString as string) ?? '',
+            currency:
+              ((snippet.superChatDetails as Record<string, unknown>)?.currency as string) ?? '',
+            tier: ((snippet.superChatDetails as Record<string, unknown>)?.tier as number) ?? 1,
+            userComment:
+              ((snippet.superChatDetails as Record<string, unknown>)?.userComment as string) ?? undefined,
+          }
+        : undefined;
+
       return {
         commentId: item.id as string,
         userId: (authorDetails?.channelId as string) ?? '',
         userName: (authorDetails?.displayName as string) ?? 'Unknown',
-        text: (textDetails?.messageText as string) ?? '',
+        text,
         publishedAt: (snippet?.publishedAt as string) ?? '',
+        superChat,
       };
     });
 
