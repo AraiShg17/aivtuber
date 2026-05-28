@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls /Users/arais/Desktop/aivtuber/ 2>/dev/null || echo \"Directory empty or not found\")",
+      "Bash(git push *)",
+      "Bash(pkill -f \"next dev\")"
+    ]
+  }
+}
