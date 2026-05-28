@@ -54,3 +54,11 @@ export interface AIApiResponse {
 export interface VoiceApiRequest {
   text: string;
 }
+
+export interface SpontaneousApiRequest {
+  recentComments: string[]; // 直近コメントのテキスト（コンテキスト用）
+}
+
+export interface SpontaneousApiResponse {
+  text: string;
+}
