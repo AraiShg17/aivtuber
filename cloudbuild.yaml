@@ -1,0 +1,56 @@
+steps:
+  # Build Docker image with layer cache
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build'
+    args:
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${COMMIT_SHA}'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:latest'
+      - '--cache-from'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:latest'
+      - '.'
+
+  # Push both tags to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push'
+    args:
+      - 'push'
+      - '--all-tags'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}'
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - '${_SERVICE}'
+      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${COMMIT_SHA}'
+      - '--region=${_REGION}'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--port=8080'
+      - '--min-instances=0'
+      - '--max-instances=1'
+      - '--set-secrets=OPENAI_API_KEY=openai-api-key:latest'
+      - '--set-env-vars=FIREBASE_PROJECT_ID=${PROJECT_ID},VOICEVOX_URL=${_VOICEVOX_URL},VOICEVOX_SPEAKER_ID=${_VOICEVOX_SPEAKER_ID},YOUTUBE_API_KEY=${_YOUTUBE_API_KEY}'
+
+substitutions:
+  _REGION: asia-northeast1
+  _SERVICE: aivtuber
+  _REPO: aivtuber
+  # Set these in Cloud Build trigger configuration:
+  _VOICEVOX_URL: 'http://localhost:50021'  # Replace with internal Cloud Run URL after deploying VOICEVOX
+  _VOICEVOX_SPEAKER_ID: '1'
+  _YOUTUBE_API_KEY: ''  # Set in trigger or use Secret Manager
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${COMMIT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_MEDIUM

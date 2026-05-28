@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+.npm/
+
+# Next.js
+.next/
+out/
+
+# Production
+dist/
+build/
+
+# Env files
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Secrets
+service-account.json
+*.pem
+*.key
+
+# Editor
+.DS_Store
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Vercel
+.vercel
