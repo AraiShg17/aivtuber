@@ -1,9 +1,4 @@
-import dynamic from 'next/dynamic';
-
-const VTuberOverlay = dynamic(
-  () => import('@/app/components/VTuberOverlay'),
-  { ssr: false }
-);
+import ClientOverlay from '@/app/components/ClientOverlay';
 
 interface Props {
   searchParams: Promise<{ videoId?: string }>;
@@ -28,5 +23,5 @@ export default async function Home({ searchParams }: Props) {
     );
   }
 
-  return <VTuberOverlay videoId={resolvedVideoId} />;
+  return <ClientOverlay videoId={resolvedVideoId} />;
 }
