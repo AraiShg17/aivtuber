@@ -9,11 +9,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "firebase-admin": "^12.2.0",
     "next": "^15.3.3",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "obs-websocket-js": "^5.0.8",
     "openai": "^4.47.0",
-    "firebase-admin": "^12.2.0"
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
     "@types/node": "^20",
