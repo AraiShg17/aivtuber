@@ -29,59 +29,23 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           DIFF=$(cat /tmp/pr_trimmed.diff)
-
           if [ -z "$DIFF" ]; then
             echo "差分がないためスキップ"
             exit 0
           fi
-
-          SYSTEM_PROMPT="あなたは優秀なTypeScript/Next.jsのコードレビュアーです。PRのdiffを見て日本語でレビューしてください。
-
-レビュー観点:
-- バグ・潜在的な不具合
-- パフォーマンス上の問題
-- セキュリティリスク
-- TypeScriptの型安全性
-- 可読性・保守性の改善案
-
-出力形式:
-問題がある場合は以下の形式で記載してください:
-### 🔴 要修正 / 🟡 改善提案 / 🟢 良い点
-**ファイル名 (行番号付近)**
-> 問題の説明
-**修正方針:** 具体的な修正方法を記載
-
-特に問題がなければ「✅ 問題なし」とだけ返してください。"
-
-          # Anthropic API 呼び出し（jqでJSONエンコード）
-          RESPONSE=$(jq -n \
-            --arg system "$SYSTEM_PROMPT" \
-            --arg diff "$DIFF" \
-            '{
-              model: "claude-sonnet-4-5",
-              max_tokens: 2000,
-              messages: [{
-                role: "user",
-                content: ("以下のPR diffをレビューしてください:\n```diff\n" + $diff + "\n```")
-              }],
-              system: $system
-            }' | curl -s https://api.anthropic.com/v1/messages \
+          SYSTEM_PROMPT=$(cat .github/review-prompt.txt)
+          RESPONSE=$(jq -n --arg system "$SYSTEM_PROMPT" --arg diff "$DIFF" \
+            '{model:"claude-sonnet-4-5",max_tokens:2000,system:$system,messages:[{role:"user",content:("以下のPR diffをレビューしてください:\n```diff\n"+$diff+"\n```")}]}' \
+            | curl -s https://api.anthropic.com/v1/messages \
               -H "x-api-key: $ANTHROPIC_API_KEY" \
               -H "anthropic-version: 2023-06-01" \
               -H "content-type: application/json" \
               -d @-)
-
           REVIEW=$(echo "$RESPONSE" | jq -r '.content[0].text // "レビューの取得に失敗しました"')
-
-          # PR にコメント投稿
-          jq -n --arg body "## 🤖 AI コードレビュー
-
-${REVIEW}
-
----
-*Powered by Claude Sonnet*" '{body: $body}' | \
-          curl -s -X POST \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Content-Type: application/json" \
-            "https://api.github.com/repos/$REPO/issues/$PR_NUMBER/comments" \
-            -d @-
+          jq -n --arg r "$REVIEW" \
+            '{"body":("## 🤖 AI コードレビュー\n\n"+$r+"\n\n---\n*Powered by Claude Sonnet*")}' \
+            | curl -s -X POST \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.github.com/repos/$REPO/issues/$PR_NUMBER/comments" \
+              -d @-
