@@ -13,8 +13,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const text = await processComment(body);
-    return NextResponse.json({ text });
+    const result = await processComment(body);
+    return NextResponse.json(result); // { text, expression }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('[ai]', message);

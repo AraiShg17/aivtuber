@@ -6,8 +6,11 @@ export async function POST(request: NextRequest) {
   const body = (await request.json()) as SpontaneousApiRequest;
 
   try {
-    const text = await generateSpontaneousSpeech(body.recentComments ?? []);
-    return NextResponse.json({ text });
+    const result = await generateSpontaneousSpeech(
+      body.recentComments ?? [],
+      body.screenshotBase64
+    );
+    return NextResponse.json(result); // { text, expression }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('[ai/spontaneous]', message);

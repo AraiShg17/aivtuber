@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useCallback, useRef, useState } from 'react';
 import AudioPlayer from './AudioPlayer';
+import { useVTubeStudio } from '@/hooks/useVTubeStudio';
+import { useScreenCapture } from '@/hooks/useScreenCapture';
 import type { YouTubeComment, CommentsApiResponse, AIApiResponse, SpontaneousApiResponse } from '@/types';
 
 const POLL_INTERVAL_MS = 10_000;
@@ -25,14 +27,17 @@ interface Props {
 export default function VTuberOverlay({ videoId }: Props) {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
-  const pageTokenRef       = useRef<string | null>(null);
-  const isProcessingRef    = useRef(false);
-  const initializedRef     = useRef(false);
-  const recentCommentsRef  = useRef<string[]>([]);   // 直近コメントのバッファ
+  const pageTokenRef        = useRef<string | null>(null);
+  const isProcessingRef     = useRef(false);
+  const initializedRef      = useRef(false);
+  const recentCommentsRef   = useRef<string[]>([]);   // 直近コメントのバッファ
   const spontaneousTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const { onSpeakStart, onSpeakEnd, injectMouthOpen } = useVTubeStudio();
+  const { isCapturing, start: startCapture, captureFrame } = useScreenCapture();
+
   // ---- 音声再生共通処理 ----
-  const playText = useCallback(async (text: string): Promise<void> => {
+  const playText = useCallback(async (text: string, expression = 'normal'): Promise<void> => {
     const voiceRes = await fetch('/api/voice', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -43,8 +48,9 @@ export default function VTuberOverlay({ videoId }: Props) {
       return;
     }
     const blob = await voiceRes.blob();
+    await onSpeakStart(expression); // AI が決めた表情のホットキーを発火
     setAudioUrl(URL.createObjectURL(blob));
-  }, []);
+  }, [onSpeakStart]);
 
   // ---- 自動発話スケジューラ ----
   const scheduleSpontaneous = useCallback(() => {
@@ -58,14 +64,18 @@ export default function VTuberOverlay({ videoId }: Props) {
       }
       isProcessingRef.current = true;
       try {
+        const screenshot = captureFrame(); // 発話タイミングで画面をその場撮影
         const res = await fetch('/api/ai/spontaneous', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ recentComments: recentCommentsRef.current }),
+          body: JSON.stringify({
+            recentComments: recentCommentsRef.current,
+            ...(screenshot ? { screenshotBase64: screenshot } : {}),
+          }),
         });
         const data: SpontaneousApiResponse & { error?: string } = await res.json();
         if (data.error) throw new Error(data.error);
-        await playText(data.text);
+        await playText(data.text, data.expression);
       } catch (err) {
         console.error('[spontaneous]', err);
         isProcessingRef.current = false;
@@ -77,8 +87,9 @@ export default function VTuberOverlay({ videoId }: Props) {
   const handleAudioEnded = useCallback(() => {
     setAudioUrl(null);
     isProcessingRef.current = false;
+    onSpeakEnd(); // VTube Studio アイドルホットキー発火
     scheduleSpontaneous(); // 発話終了 → 次の自動発話をスケジュール
-  }, [scheduleSpontaneous]);
+  }, [scheduleSpontaneous, onSpeakEnd]);
 
   // ---- 起動時カーソル初期化 ----
   const initializeCursor = useCallback(async () => {
@@ -106,6 +117,7 @@ export default function VTuberOverlay({ videoId }: Props) {
     ].slice(0, RECENT_COMMENTS_MAX);
 
     try {
+      const screenshot = captureFrame();
       const aiRes = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -115,11 +127,12 @@ export default function VTuberOverlay({ videoId }: Props) {
           userName: comment.userName,
           text: comment.text,
           superChat: comment.superChat,
+          ...(screenshot ? { screenshotBase64: screenshot } : {}),
         }),
       });
       const aiData: AIApiResponse & { error?: string } = await aiRes.json();
       if (aiData.error) throw new Error(aiData.error);
-      await playText(aiData.text);
+      await playText(aiData.text, aiData.expression); // AI が決めた表情を渡す
     } catch (err) {
       console.error('[processComment]', err);
       isProcessingRef.current = false;
@@ -166,5 +179,38 @@ export default function VTuberOverlay({ videoId }: Props) {
     };
   }, [initializeCursor, pollComments]);
 
-  return <AudioPlayer audioUrl={audioUrl} onEnded={handleAudioEnded} />;
+  return (
+    <>
+      <AudioPlayer
+        audioUrl={audioUrl}
+        onEnded={handleAudioEnded}
+        onAmplitude={injectMouthOpen}
+      />
+      {/* 画面共有ボタン: OBS の「ソースを操作」で右クリック→インタラクト からクリック */}
+      {!isCapturing ? (
+        <button
+          onClick={startCapture}
+          title="ゲーム画面の共有を開始"
+          style={{
+            position: 'fixed', top: 8, left: 8,
+            background: 'rgba(0,0,0,0.5)', border: 'none',
+            borderRadius: 6, color: '#fff', fontSize: 18,
+            cursor: 'pointer', padding: '4px 8px', opacity: 0.7,
+          }}
+        >
+          📸
+        </button>
+      ) : (
+        // キャプチャ中は小さい緑ドットだけ表示
+        <div
+          title="画面キャプチャ中"
+          style={{
+            position: 'fixed', top: 10, left: 10,
+            width: 10, height: 10, borderRadius: '50%',
+            background: '#22c55e', opacity: 0.8,
+          }}
+        />
+      )}
+    </>
+  );
 }
