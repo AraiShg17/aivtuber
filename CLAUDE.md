@@ -16,6 +16,16 @@ git push origin feature/xxx
 gh pr create ...
 ```
 
+## ブランチ命名規則
+
+| 種類 | 命名 |
+|--|--|
+| 機能追加 | `feat/xxx` |
+| バグ修正 | `fix/xxx` |
+| CI/設定変更 | `ci/xxx` または `chore/xxx` |
+| テスト | `test/xxx` |
+| Issue対応 | `feat/issue-{番号}` |
+
 ## プロジェクト概要
 
 Next.js 15.5 + React 19 で構築したAI VTuber MVP。
