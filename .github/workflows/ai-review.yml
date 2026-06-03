@@ -41,6 +41,9 @@ jobs:
               -H "anthropic-version: 2023-06-01" \
               -H "content-type: application/json" \
               -d @-)
+          echo "=== API Response ==="
+          echo "$RESPONSE" | jq .
+          echo "===================="
           REVIEW=$(echo "$RESPONSE" | jq -r '.content[0].text // "レビューの取得に失敗しました"')
           jq -n --arg r "$REVIEW" \
             '{"body":("## 🤖 AI コードレビュー\n\n"+$r+"\n\n---\n*Powered by Claude Sonnet*")}' \
