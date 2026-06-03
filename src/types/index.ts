@@ -45,10 +45,12 @@ export interface AIApiRequest {
   userName: string;
   text: string;
   superChat?: SuperChatInfo;
+  screenshotBase64?: string;
 }
 
 export interface AIApiResponse {
   text: string;
+  expression: string; // VTube Studio ホットキー名: normal / happy / excited / surprised / shy / thinking
 }
 
 export interface VoiceApiRequest {
@@ -56,9 +58,11 @@ export interface VoiceApiRequest {
 }
 
 export interface SpontaneousApiRequest {
-  recentComments: string[]; // 直近コメントのテキスト（コンテキスト用）
+  recentComments: string[];       // 直近コメントのテキスト（コンテキスト用）
+  screenshotBase64?: string;      // ゲーム画面キャプチャ（JPEG base64 data URL）
 }
 
 export interface SpontaneousApiResponse {
   text: string;
+  expression: string;
 }
