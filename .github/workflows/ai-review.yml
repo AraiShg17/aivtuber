@@ -12,7 +12,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
 
@@ -35,7 +35,7 @@ jobs:
           fi
           SYSTEM_PROMPT=$(cat .github/review-prompt.txt)
           RESPONSE=$(jq -n --arg system "$SYSTEM_PROMPT" --arg diff "$DIFF" \
-            '{model:"claude-sonnet-4-5",max_tokens:2000,system:$system,messages:[{role:"user",content:("以下のPR diffをレビューしてください:\n```diff\n"+$diff+"\n```")}]}' \
+            '{model:"claude-sonnet-4-6",max_tokens:4000,system:$system,messages:[{role:"user",content:("以下のPR diffをレビューしてください:\n```diff\n"+$diff+"\n```")}]}' \
             | curl -s https://api.anthropic.com/v1/messages \
               -H "x-api-key: $ANTHROPIC_API_KEY" \
               -H "anthropic-version: 2023-06-01" \
