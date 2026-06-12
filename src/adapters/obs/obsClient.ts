@@ -6,6 +6,9 @@
  *   OBS_WS_URL      WebSocket URL (default: ws://localhost:4455)
  *   OBS_WS_PASSWORD パスワード（OBS設定で有効にした場合）
  *   OBS_SOURCE_NAME スクリーンショットを取るソース名
+ *
+ * Note: Vercel等のサーバーレス環境ではリクエストごとに新プロセスが起動するため
+ * WebSocket永続接続は維持されない。ローカルサーバー運用を前提とした実装。
  */
 
 import OBSWebSocket from 'obs-websocket-js';
@@ -15,31 +18,39 @@ const OBS_WS_PASSWORD = process.env.OBS_WS_PASSWORD ?? '';
 const OBS_SOURCE_NAME = process.env.OBS_SOURCE_NAME ?? '';
 
 let client: OBSWebSocket | null = null;
-let connecting = false;
+let connectingPromise: Promise<OBSWebSocket | null> | null = null;
 
 async function getClient(): Promise<OBSWebSocket | null> {
   if (client) return client;
-  if (connecting) return null;
+  if (connectingPromise) return connectingPromise;
 
-  connecting = true;
-  try {
-    const obs = new OBSWebSocket();
-    await obs.connect(OBS_WS_URL, OBS_WS_PASSWORD || undefined);
-    client = obs;
+  connectingPromise = (async () => {
+    try {
+      const obs = new OBSWebSocket();
+      await obs.connect(OBS_WS_URL, OBS_WS_PASSWORD || undefined);
+      client = obs;
 
-    obs.on('ConnectionClosed', () => {
-      client = null;
-      connecting = false;
-    });
+      obs.on('ConnectionClosed', () => {
+        client = null;
+        connectingPromise = null;
+      });
 
-    return client;
-  } catch {
-    // OBSが起動していない場合は警告のみ（アプリは動き続ける）
-    console.warn('[OBS] 接続スキップ: OBSが起動していないか設定が正しくありません');
-    return null;
-  } finally {
-    connecting = false;
-  }
+      obs.on('ConnectionError', (err) => {
+        console.warn('[OBS] 接続エラー:', err);
+        client = null;
+        connectingPromise = null;
+      });
+
+      return client;
+    } catch {
+      console.warn('[OBS] 接続スキップ: OBSが起動していないか設定が正しくありません');
+      return null;
+    } finally {
+      connectingPromise = null;
+    }
+  })();
+
+  return connectingPromise;
 }
 
 /**
@@ -64,8 +75,11 @@ export async function captureOBSScreenshot(): Promise<string | null> {
       imageCompressionQuality: 70,
     });
 
-    // "data:image/jpg;base64,..." の base64 部分だけ返す
-    const dataUrl = response.imageData as string;
+    const dataUrl = response.imageData;
+    if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
+      console.warn('[OBS] 予期しない imageData フォーマット:', String(dataUrl).slice(0, 50));
+      return null;
+    }
     return dataUrl.split(',')[1] ?? null;
   } catch (err) {
     console.warn('[OBS] スクリーンショット取得失敗:', err instanceof Error ? err.message : err);

@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
 
   try {
     // クライアントから画像が来ない場合はOBSから取得を試みる
-    const screenshot = body.screenshotBase64 ?? await captureOBSScreenshot();
+    const screenshot = body.screenshotBase64 ?? (await captureOBSScreenshot());
 
     const result = await processComment({ ...body, screenshotBase64: screenshot ?? undefined });
     return NextResponse.json(result); // { text, expression }
